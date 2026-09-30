@@ -1,14 +1,11 @@
 import '@servicenow/sdk/global'
 import { Table, StringColumn, ChoiceColumn, ReferenceColumn, MultiLineTextColumn } from '@servicenow/sdk/core'
-import { sentinelAdmin } from '../security/roles.now'
 
 // A governance finding. Extends task so it gets numbering, state, assignment and work notes.
 export const x_snc_a2a_sentinel_finding = Table({
     name: 'x_snc_a2a_sentinel_finding',
     label: 'Sentinel Finding',
     extends: 'task',
-    createAccessControls: true,
-    userRole: sentinelAdmin,
     autoNumber: { prefix: 'A2AF', number: 1000, numberOfDigits: 7 },
     schema: {
         finding_type: ChoiceColumn({

@@ -94,7 +94,7 @@ sentinel/   Fluent app x_snc_a2a_sentinel (the product)
   src/fluent/ui         Forms, list layouts, navigator menu
   src/scripts           A2ASentinel.js (diff engine, probes, reconciliation)
 fleet/      Fluent app x_2208133_a2afleet: simulated third-party provider publishing live A2A cards + JSON-RPC
-docs/       evidence.md, demo-script.md, migration.md, reset scripts
+docs/       evidence.md, test-plan.md, demo-script.md, migration.md, reset scripts
 ```
 
 ## Run it
@@ -110,7 +110,7 @@ cd fleet && npm install && npm run build && npx @servicenow/sdk install --auth <
 cd sentinel && npm install && npm run build && npx @servicenow/sdk install --auth <instance-alias>
 ```
 
-Then go to **A2A Sentinel > Watched Agents > Run watch cycle**. Demo walkthrough: [docs/demo-script.md](docs/demo-script.md).
+Then go to **A2A Sentinel > Watched Agents > Run watch cycle**. Hands-on test plan: [docs/test-plan.md](docs/test-plan.md). Demo walkthrough: [docs/demo-script.md](docs/demo-script.md).
 Moving to a new instance: [docs/migration.md](docs/migration.md).
 
 ## Design decisions
