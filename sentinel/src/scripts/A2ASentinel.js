@@ -150,12 +150,30 @@ A2ASentinel.prototype = {
         return provider.getValue('agent_card_url') || '';
     },
 
+    /**
+     * AI Control Tower links agent -> AI asset (servicenow_ref_id) -> CI (asset).
+     * Fallback: the AI Function CI's object_id ("<agent sys_id>:<instance>"), a field that
+     * exists only on the cmdb_ci_vm_object subclasses, never on the cmdb_ci base table.
+     */
     _findAiCi: function (agentSysId) {
-        const ci = new GlideRecord('cmdb_ci');
-        ci.addQuery('object_id', 'STARTSWITH', agentSysId + ':');
-        ci.setLimit(1);
-        ci.query();
-        return ci.next() ? ci.getUniqueValue() : '';
+        if (this._tableExists('alm_ai_system_digital_asset')) {
+            const asset = new GlideRecord('alm_ai_system_digital_asset');
+            asset.addQuery('servicenow_ref_id', agentSysId);
+            asset.setLimit(1);
+            asset.query();
+            if (asset.next()) {
+                const ci = this._ciForAsset(asset.getUniqueValue());
+                if (ci) return ci.getUniqueValue();
+            }
+        }
+        if (this._tableExists('cmdb_ci_function_ai')) {
+            const ci = new GlideRecord('cmdb_ci_function_ai');
+            ci.addQuery('object_id', 'STARTSWITH', agentSysId + ':');
+            ci.setLimit(1);
+            ci.query();
+            if (ci.next()) return ci.getUniqueValue();
+        }
+        return '';
     },
 
     /** The card ServiceNow captured at registration becomes the baseline. */
@@ -600,8 +618,9 @@ A2ASentinel.prototype = {
         return raised;
     },
 
+    /** Prefer the AI Function class so object_id is readable; fall back to the CMDB base table. */
     _ciForAsset: function (assetSysId) {
-        const ci = new GlideRecord('cmdb_ci');
+        const ci = new GlideRecord(this._tableExists('cmdb_ci_function_ai') ? 'cmdb_ci_function_ai' : 'cmdb_ci');
         ci.addQuery('asset', assetSysId);
         ci.setLimit(1);
         ci.query();
