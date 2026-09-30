@@ -39,9 +39,18 @@ Agent Card on every request. `POST .../agents/vendor-risk/rpc` answers A2A `mess
 
 ### A3. The Sentinel application (LAB)
 1. LAB, then **All > A2A Sentinel**. Modules: *Watched Agents, Open Findings, All Findings, Card History, Health Probes*.
-2. Open the app record `LAB/sys_app.do?sys_id=d9d36e0a24d1412e96d40f570df28d3e` and scroll to its application files.
-   You'll find 4 tables, the `A2ASentinel` Script Include, the *A2A Sentinel - watch cycle* job, 4 UI actions, the
-   *A2A Sentinel API* REST service, 16 table ACLs plus 1 REST ACL, 13 cross-scope privileges, 3 properties and 2 roles.
+2. List every application file: `LAB/sys_metadata_list.do?sysparm_query=sys_scope=d9d36e0a24d1412e96d40f570df28d3e`,
+   then group by *Class*. You'll find 4 tables (`sys_db_object`), 1 Script Include, 1 scheduled job (`sysauto_script`),
+   4 UI actions, 1 REST service with 3 routes (`sys_ws_definition` / `sys_ws_operation`), 17 ACLs (16 table + 1 REST),
+   3 properties, 2 roles, 4 forms and 4 list layouts, and 5 navigator modules.
+3. **Cross-scope privileges** (`sys_scope_privilege`): about 33 rows, all *Allowed*.
+   - **13** are declared in the source (`src/fluent/security/access.now.ts`), such as reading `sn_aia_agent` and writing `cmdb_ci`.
+   - **About 20** were recorded automatically by the platform's **runtime access tracking** the first time the code
+     ran: every platform API a scoped app calls (`RESTMessageV2.execute`, `GlideDigest.getSHA256Hex`, ...) is logged
+     and allowed in *Tracking* mode.
+   - On this lab, **4 declared rows show an empty Target scope**. An early build wrote scope names instead of sys_ids,
+     and runtime tracking had already created correct twins before the fix, so the platform could not update them.
+     Access works through the twins. A fresh install is clean.
 
 **Behind the scenes:** all of it is generated from the Fluent source in `sentinel/src/fluent`. Nothing was built by hand.
 
@@ -70,12 +79,15 @@ Open **Atlassian Rovo** in Watched Agents.
 
 **Behind the scenes:** `syncFromAgentStudio()` reads `sn_aia_agent` (type external), follows
 card record, then discovery record, then provider, to find the card URL, and imports the registered card as the baseline.
+The CI is found through AI Control Tower's link: agent, then AI asset (`servicenow_ref_id`), then CI (`asset`).
 
 ### A7. The problem Sentinel solves (evidence in AI Control Tower)
 1. From Rovo's watched-agent record, open its **AI Function CI**. The **Card** and **Well-Known URI** fields are **empty**:
    AI Control Tower knows Rovo exists but not what it can do.
-2. Compare: open `cmdb_ci_function_ai.list` and filter *Name* on your exposed internal agent's name. Your own exposed agent's CI
-   **does** have a card, because the CMDB only stores cards for agents ServiceNow *exposes*.
+2. Compare: open `cmdb_ci_function_ai.list` and filter *Name* on your exposed internal agent's name. **Two** CIs have this name:
+   - The one whose **Object ID starts with `caa6f4d9`** (most recent discovery: today) is your live agent. Its **Card**
+     and **Well-Known URI** are filled, because the CMDB only stores cards for agents ServiceNow *exposes*.
+   - The one whose **Object ID starts with `d620eaa0`** (last discovered 24 Sep) is the orphan from step 3, with no card.
 3. Open finding **A2AF0001001 (Orphaned AI asset)**. The evidence says the agent was deleted on 24 Sep by `admin`. Open the
    **Affected AI asset**: Install status is still **Deployed**. Open the **Affected CI**: still **Installed / Operational**.
 
