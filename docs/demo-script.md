@@ -48,8 +48,9 @@ Open the Critical finding. Show the **AI explanation (Now Assist)**, the **Recom
 ## 3. Endpoint hijack or unannounced migration (1 min)
 
 In **Fleet**, open *Contoso Travel Booking Agent*, set **Endpoint override** to
-`https://contoso-agents.example.net/a2a/travel`, then click **Update**.
+`https://contoso-agents.example.net/a2a/travel` and **Agent version** to `1.1.0`, then click **Update**.
 In **Sentinel**, run **Check now** on the agent. Expected: **High**, *Runtime endpoint moved to a different host*.
+If you leave the version at 1.0.0, you also get **Medium**, *Card changed without a version bump*.
 
 ## 4. Scope creep (30 s)
 

@@ -9,15 +9,12 @@ import {
     DateTimeColumn,
     IntegerColumn,
 } from '@servicenow/sdk/core'
-import { sentinelAdmin } from '../security/roles.now'
 
 // A third-party A2A agent whose live Agent Card is watched.
 export const x_snc_a2a_sentinel_agent = Table({
     name: 'x_snc_a2a_sentinel_agent',
     label: 'Watched Agent',
     display: 'name',
-    createAccessControls: true,
-    userRole: sentinelAdmin,
     schema: {
         name: StringColumn({ label: 'Name', maxLength: 100, mandatory: true }),
         card_url: UrlColumn({ label: 'Agent Card URL', mandatory: true }),

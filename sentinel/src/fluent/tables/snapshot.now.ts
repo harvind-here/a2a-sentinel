@@ -1,14 +1,11 @@
 import '@servicenow/sdk/global'
 import { Table, StringColumn, ChoiceColumn, ReferenceColumn, DateTimeColumn, IntegerColumn, MultiLineTextColumn } from '@servicenow/sdk/core'
-import { sentinelAdmin } from '../security/roles.now'
 
 // Versioned history of an agent's Agent Card: one row per distinct card content.
 export const x_snc_a2a_sentinel_snapshot = Table({
     name: 'x_snc_a2a_sentinel_snapshot',
     label: 'Card Snapshot',
     display: 'card_hash',
-    createAccessControls: true,
-    userRole: sentinelAdmin,
     schema: {
         agent: ReferenceColumn({ label: 'Watched agent', referenceTable: 'x_snc_a2a_sentinel_agent', mandatory: true }),
         source: ChoiceColumn({
