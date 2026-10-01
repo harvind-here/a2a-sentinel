@@ -11,10 +11,13 @@
         'hr-letters': { version: '1.0.3', auth_mode: 'oauth2', oauth_scopes: 'letters.draft', endpoint_override: '', status: 'online',
             skills: '[{"id":"draft_letter","name":"Draft HR letter","description":"Draft a verification or experience letter for an employee.","tags":["hr","documents"]}]' },
     };
+    // Fields every agent shares in its clean state (changed by test B8).
+    var common = { protocol_version: '0.3.0', streaming: false, push_notifications: false, active: true };
     Object.keys(seed).forEach(function (slug) {
         var gr = new GlideRecord('x_2208133_a2afleet_agent');
         if (!gr.get('slug', slug)) return;
         var values = seed[slug];
+        Object.keys(common).forEach(function (field) { gr.setValue(field, common[field]); });
         Object.keys(values).forEach(function (field) { gr.setValue(field, values[field]); });
         gr.update();
         gs.print('Restored ' + slug);

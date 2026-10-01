@@ -14,6 +14,8 @@ Tips:
   have already caught it. That is expected behaviour, not a bug.
 - *Check now* takes about 1 second with no change, and a few extra seconds per new finding (Now Assist writes the explanation).
 - **B13 cannot be undone** (it retires an AI Control Tower asset). Do it last, or on camera during your recording.
+- **On a new lab** (after migrating): A6 and A7 need an external agent registered in that lab's AI Agent Studio (the old lab
+  had Atlassian Rovo). The orphan in A7 step 3 existed only on the old lab; B13 shows how to create one.
 
 ---
 
@@ -100,150 +102,301 @@ Proof it runs: **A2A Sentinel > Health Probes**, sorted by *Probed on* descendin
 
 ---
 
-## Part B: change things, watch Sentinel react
+## Part B: change things, watch Sentinel react (exact steps)
 
-In PDI, edit records in **A2A Contoso Fleet > Fleet Agents**. In LAB, use the **Check now** button on the matching
-Watched Agent form.
+### Before you start Part B
 
-### B1. No change, no noise
-LAB: open *Contoso Vendor Risk Agent* and click **Check now**.
-**Expect:** the message *"Contoso Vendor Risk Agent: ok (HTTP 200, N ms), no change, 0 new finding(s)"*, 1 new Health
-Probe with *Card changed* = false, and no new snapshot.
+**Where things are**
 
-### B2. The vendor silently adds a destructive skill and drops authentication
-PDI, *Contoso Vendor Risk Agent*: set **Auth mode** to *None (public)*, replace **Skills** with the JSON below, and leave
-**Agent version** at 1.4.2. Click **Update**.
-
-```json
-[{"id":"vendor_risk_score","name":"Vendor risk score","description":"Return a 0-100 risk score with the top risk drivers.","tags":["risk","vendor"]},
- {"id":"delete_vendor_record","name":"Delete vendor record","description":"Permanently delete a vendor and all associated contracts from the vendor master.","tags":["vendor","admin"]}]
-```
-
-LAB: **Check now**.
-**Expect:** *"... card changed, 3 new finding(s)"*, plus:
-
-| Finding | Severity |
+| You need | Where |
 |---|---|
-| Agent no longer declares any authentication | Critical |
-| New skill "Delete vendor record" can change or delete data | High |
-| Card changed without a version bump (still 1.4.2) | Medium |
+| Fleet agent records (PDI) | PDI, then **All > A2A Contoso Fleet > Fleet Agents**, then click the agent's **Name** |
+| Watched agents (LAB) | LAB, then **All > A2A Sentinel > Watched Agents**, then click the agent's **Name** |
+| Findings for one agent | Bottom of the Watched Agent form: the **Sentinel Findings** related list |
+| All open findings | LAB, then **All > A2A Sentinel > Open Findings** |
+| *Check now* | Button at the **top right** of the Watched Agent form (or right-click a row in the list, then **Check now**) |
+| A fleet agent's live card | `https://dev342222.service-now.com/api/x_2208133_a2afleet/fleet/agents/<slug>/card` (slugs: `travel-booking`, `expense-policy`, `vendor-risk`, `hr-letters`) |
 
-The agent's **Risk** becomes *Critical*, **Authentication** becomes *none*, **Skills** becomes 2, and a new *Live fetch* snapshot appears.
+**Fleet Agent form layout (PDI)**, top to bottom:
 
-Open the Critical finding and check:
+| Row | Left | Right |
+|---|---|---|
+| 1 | **Name** (full width) | |
+| 2 | **Slug** | **Supports push notifications** |
+| 3 | **Provider organization** (full width) | |
+| 4 | **Skills (JSON array)**, a large text box (full width) | |
+| 5 | **A2A protocol version**, **Status** | **Agent version** |
+| 6 | **Endpoint override** (full width) | |
+| 7 | **Auth mode**, **Supports streaming** | **Active** |
+| 8 | **Description**, then **OAuth scopes (comma separated)** (full width) | |
 
-- **AI explanation (Now Assist)**: a plain-English summary. The wording differs on every run because it is an LLM.
-- **Recommended action**: deterministic, by finding type.
-- **Evidence (JSON)**: before and after authentication.
-- **Card before / Card after**: open both snapshots and compare the JSON.
+After editing, click **Update** (top right) on the PDI form.
 
-**Behind the scenes:** `checkAgent()` fetches the card, sees a new hash, stores a snapshot, then `diffCards()` compares
-the old and new cards. The rules are: auth strength dropped to zero gives Critical; a new skill whose name or description
-matches destructive verbs (delete, purge, transfer, approve, ...) gives High; changes under the same version give Medium.
-`_raise()` creates each finding and asks Now Assist (`sn_generative_ai.LLMClient`) for the explanation.
+**Starting state check.** In LAB **Watched Agents** every Contoso agent should show Health **Healthy** and Risk **None**, with:
+
+| Agent | Card version | Authentication | Skills |
+|---|---|---|---|
+| Contoso Travel Booking Agent | 1.0.0 | oauth2 | 2 |
+| Contoso Expense Policy Agent | 2.1.0 | oauth2 | 2 |
+| Contoso Vendor Risk Agent | 1.4.2 | apiKey | 1 |
+| Contoso HR Letters Agent | 1.0.3 | oauth2 | 1 |
+
+If not, run the [Reset](#reset-after-testing) first.
+
+**Rules for Part B**
+
+- Do the tests **in order** and **do not undo PDI edits between tests**; the final reset restores everything.
+- In every message below, `###` is the latency in milliseconds and varies.
+- Finding numbers (`A2AF000xxxx`) depend on your instance, so match findings by **Short description** instead.
+- The 10-minute job may check an agent before you click *Check now*. If your banner says
+  *"no change, 0 new finding(s)"* right after an edit, the job got there first: the findings are already in the
+  **Sentinel Findings** related list (check *Created*).
+
+---
+
+### B1. A check with no change creates no noise
+
+1. LAB: **Watched Agents**, open **Contoso Vendor Risk Agent**, click **Check now**.
+2. **Banner:** `A2A Sentinel: Contoso Vendor Risk Agent: ok (HTTP 200, ### ms), no change, 0 new finding(s)`
+3. **Verify on the form:** *Last checked* is now, *Last HTTP status* = `200`, *Consecutive failures* = `0`.
+4. **Verify related lists:** **Health Probes** has a new top row (*Outcome* = OK, *HTTP status* = 200,
+   *Card changed* = false). **Card Snapshots** still has **1** row.
+
+### B2. The vendor drops authentication and adds a destructive skill (same version)
+
+1. PDI: open **Contoso Vendor Risk Agent**.
+   - **Auth mode**: select **None (public)**
+   - **Skills (JSON array)**: select all the text, delete it, and paste:
+     ```json
+     [{"id":"vendor_risk_score","name":"Vendor risk score","description":"Return a 0-100 risk score with the top risk drivers.","tags":["risk","vendor"]},{"id":"delete_vendor_record","name":"Delete vendor record","description":"Permanently delete a vendor and all associated contracts from the vendor master.","tags":["vendor","admin"]}]
+     ```
+   - **Agent version**: leave **1.4.2**
+   - Click **Update**.
+2. (Optional) Open `.../agents/vendor-risk/card` in a browser: `"securitySchemes": {}`, `"security": []`, and 2 skills.
+3. LAB: open **Contoso Vendor Risk Agent**, click **Check now**.
+4. **Banner:** `A2A Sentinel: Contoso Vendor Risk Agent: ok (HTTP 200, ### ms), card changed, 3 new finding(s)`
+5. **Verify on the form:** *Risk* = **Critical**, *Health* = Healthy, *Authentication* = `none`, *Skills* = `2`, *Card version* = `1.4.2`.
+6. **Verify Sentinel Findings** (3 new rows, *State* = Open):
+
+   | Severity | Finding type | Short description | Priority |
+   |---|---|---|---|
+   | Critical | Authentication removed | `[CRITICAL] Agent no longer declares any authentication - Contoso Vendor Risk Agent` | 1 - Critical |
+   | High | Skill added | `[HIGH] New skill "Delete vendor record" can change or delete data - Contoso Vendor Risk Agent` | 2 - High |
+   | Medium | Unversioned change | `[MEDIUM] Card changed without a version bump (still 1.4.2) - Contoso Vendor Risk Agent` | 3 - Moderate |
+
+7. **Verify Card Snapshots:** 2 rows. The newest has *Authentication* = `none` and *Skills* = `2`.
+   **Health Probes:** the newest row has *Card changed* = true.
+8. Open the **Critical** finding:
+   - *Description*: `Before: apiKey  ->  After: none`
+   - *AI explanation (Now Assist)*: 2 to 3 sentences written by Now Assist (the wording varies on every run).
+   - *Recommended action*: `Suspend use of this agent in agentic workflows until the provider restores authentication, then confirm with the vendor why it was removed.`
+   - **Evidence** section: *Evidence (JSON)* is `{"before": {"apiKey": "apiKey"}, "after": {}}`. Click the **(i)** icon next to
+     *Card before* and *Card after*: the "before" card has a `securitySchemes.apiKey` block; the "after" card's `securitySchemes` is empty.
+9. Open the **High** finding. *Description*:
+   `Delete vendor record: Permanently delete a vendor and all associated contracts from the vendor master.`
+   The *Evidence (JSON)* contains `"destructive": true`.
+10. Open the **Medium** finding. *Description*: `2 change(s) published under the same version 1.4.2`.
+    *Evidence (JSON)*: `{"version": "1.4.2", "changes": ["auth_removed", "skill_added"]}`.
 
 ### B3. De-duplication
-LAB: click **Check now** again.
-**Expect:** *"no change, 0 new finding(s)"*, with no duplicate findings.
-**Behind the scenes:** the hash is unchanged. Even if it weren't, each finding has a fingerprint
-(agent, type and detail), and an open finding with the same fingerprint is never created twice.
 
-### B4. Accept risk
-Open the Medium finding *Card changed without a version bump* and click **Accept risk**.
-**Expect:** State is *Closed Complete*, with a work note saying who accepted it. The agent's Risk is recalculated on its
-next check, and stays *Critical* while the Critical finding is open.
+1. LAB: on **Contoso Vendor Risk Agent**, click **Check now** again.
+2. **Banner:** `... ok (HTTP 200, ### ms), no change, 0 new finding(s)`
+3. **Verify:** Sentinel Findings still has exactly the 3 findings from B2, and Card Snapshots still has 2 rows.
 
-### B5. Endpoint moved to another host
-PDI, *Contoso Travel Booking Agent*: set **Endpoint override** to `https://contoso-agents.example.net/a2a/travel` and
-**Agent version** to `1.1.0`. LAB: **Check now**.
-**Expect:** **High**, *Runtime endpoint moved to a different host*, and **Endpoint host** becomes `contoso-agents.example.net`.
-**Variation:** leave the version at 1.0.0 and you also get **Medium**, *changed without a version bump*.
+### B4. Accept a risk
+
+1. LAB: in **Contoso Vendor Risk Agent > Sentinel Findings**, open the **Medium** finding *"Card changed without a version bump"*.
+2. Click **Accept risk** (top right).
+3. **Verify:** *State* = **Closed Complete**. The Activity stream shows the work note
+   `Change reviewed and risk accepted by <your name>.`
+4. Go back to the agent and click **Check now**. *Risk* stays **Critical**, because the Critical and High findings are still open.
+
+### B5. The runtime endpoint moves to another host
+
+1. PDI: open **Contoso Travel Booking Agent**.
+   - **Endpoint override**: `https://contoso-agents.example.net/a2a/travel`
+   - **Agent version**: `1.1.0`
+   - Click **Update**.
+2. LAB: open **Contoso Travel Booking Agent**, click **Check now**.
+3. **Banner:** `... card changed, 1 new finding(s)`
+4. **Verify on the form:** *Risk* = **High**, *Card version* = `1.1.0`, *Endpoint host* = `contoso-agents.example.net`.
+5. **Verify the finding:** Severity **High**, Finding type **Endpoint changed**,
+   short description `[HIGH] Runtime endpoint moved to a different host - Contoso Travel Booking Agent`.
+   *Description*: `https://dev342222.service-now.com/api/x_2208133_a2afleet/fleet/agents/travel-booking/rpc  ->  https://contoso-agents.example.net/a2a/travel`
 
 ### B6. OAuth scope creep
-PDI, *Contoso HR Letters Agent*: set **OAuth scopes** to `letters.draft,hr.records.read` and **Agent version** to `1.1.0`.
-LAB: **Check now**.
-**Expect:** **Medium**, *Agent requests additional OAuth scopes: hr.records.read*.
+
+1. PDI: open **Contoso HR Letters Agent**.
+   - **OAuth scopes (comma separated)**: `letters.draft,hr.records.read`
+   - **Agent version**: `1.1.0`
+   - Click **Update**.
+2. LAB: open **Contoso HR Letters Agent**, click **Check now**.
+3. **Banner:** `... card changed, 1 new finding(s)`
+4. **Verify the finding:** Severity **Medium**, Finding type **OAuth scopes expanded**,
+   short description `[MEDIUM] Agent requests additional OAuth scopes: hr.records.read - Contoso HR Letters Agent`.
+   *Description*: `Before: [letters.draft]  ->  After: [hr.records.read, letters.draft]`. The agent's *Risk* = **Medium**.
 
 ### B7. A skill disappears
-PDI, *Contoso Expense Policy Agent*: set **Skills** to the JSON below and **Agent version** to `2.2.0`. LAB: **Check now**.
 
-```json
-[{"id":"check_policy","name":"Check expense policy","description":"Validate an expense line against policy limits.","tags":["finance","policy"]}]
-```
+1. PDI: open **Contoso Expense Policy Agent**.
+   - **Skills (JSON array)**: replace everything with:
+     ```json
+     [{"id":"check_policy","name":"Check expense policy","description":"Validate an expense line against policy limits.","tags":["finance","policy"]}]
+     ```
+   - **Agent version**: `2.2.0`
+   - Click **Update**.
+2. LAB: open **Contoso Expense Policy Agent**, click **Check now**.
+3. **Banner:** `... card changed, 1 new finding(s)`
+4. **Verify:** *Skills* = `1`, *Card version* = `2.2.0`, *Risk* = **Medium**. The finding is Severity **Medium**, Finding type
+   **Skill removed**, short description `[MEDIUM] Skill "Summarize receipts" was removed - Contoso Expense Policy Agent`.
+   *Recommended action*: `Identify ServiceNow workflows that depend on the removed skill; they will fail or degrade.`
 
-**Expect:** **Medium**, *Skill "Summarize receipts" was removed*. The recommendation warns that workflows depending on it will fail.
+### B8. Protocol and capability changes
 
-### B8. Protocol and capability change (optional)
-PDI, any agent: set **A2A protocol version** to `1.0.0`, tick **Supports streaming**, and bump **Agent version**. LAB: **Check now**.
-**Expect:** **Medium**, *A2A protocol version changed*, and **Low**, *Agent capabilities changed*.
+1. PDI: open **Contoso HR Letters Agent**.
+   - **A2A protocol version**: `1.0.0`
+   - **Supports streaming**: tick it
+   - **Agent version**: `1.2.0`
+   - Click **Update**.
+2. LAB: open **Contoso HR Letters Agent**, click **Check now**.
+3. **Banner:** `... card changed, 2 new finding(s)`
+4. **Verify the findings:**
+   - Medium, **Protocol version changed**: `[MEDIUM] A2A protocol version changed (0.3.0 -> 1.0.0) - Contoso HR Letters Agent`
+   - Low, **Capabilities changed**: `[LOW] Agent capabilities changed - Contoso HR Letters Agent`, with *Description*
+     `streaming=false, pushNotifications=false  ->  streaming=true, pushNotifications=false`
+5. Note: **Low** findings don't call Now Assist. Their *AI explanation* is the fixed text
+   `Agent capabilities changed. Review whether workflows rely on the changed capability (streaming / push notifications).`
 
 ### B9. Outage: Degraded, then Down
-PDI, *Contoso Expense Policy Agent*: set **Status** to *Offline (503)*.
 
-1. LAB: **Check now**. **Expect:** *http_error (HTTP 503 ...)*, Health **Degraded**, no finding yet.
-2. LAB: **Check now** again. **Expect:** Health **Down**, and **High**, *Agent card unreachable*.
-
-Health Probes show *HTTP error* rows. The threshold of 2 is the property `x_snc_a2a_sentinel.failure_threshold`.
-The 500-error variant (**Status** set to *Broken card (500)*) behaves the same way with HTTP 500.
+1. PDI: open **Contoso Expense Policy Agent**. **Status**: select **Offline (503)**, then click **Update**.
+2. (Optional) Open `.../agents/expense-policy/card` in a browser: `{"error": "Service Unavailable"}`.
+3. LAB: open **Contoso Expense Policy Agent**, click **Check now** (**first** check).
+   - **Banner:** `A2A Sentinel: Contoso Expense Policy Agent: http_error (HTTP 503, ### ms), no change, 0 new finding(s)`
+   - **Form:** *Health* = **Degraded**, *Last HTTP status* = `503`, *Consecutive failures* = `1`.
+   - **Health Probes**, newest row: *Outcome* = HTTP error, *HTTP status* = 503, *Error* = `HTTP 503`.
+4. Click **Check now** again (**second** check).
+   - **Banner:** `... http_error (HTTP 503, ### ms), no change, 1 new finding(s)`
+   - **Form:** *Health* = **Down**, *Consecutive failures* = `2`, *Risk* = **High**.
+   - **Finding:** Severity **High**, Finding type **Card unreachable**, short description
+     `[HIGH] Agent card unreachable - Contoso Expense Policy Agent`. *Description*:
+     `HTTP 503 (2 consecutive failed checks of https://dev342222.service-now.com/api/x_2208133_a2afleet/fleet/agents/expense-policy/card)`
 
 ### B10. Self-healing
-PDI: set **Status** back to *Online*. LAB: **Check now**.
-**Expect:** Health **Healthy**, and the *Agent card unreachable* finding is **closed automatically**. Its Activity shows the
-work note *"Recovered: live card fetched successfully (HTTP 200, N ms)"*.
+
+1. PDI: open **Contoso Expense Policy Agent**. **Status**: select **Online**, then click **Update**.
+2. LAB: open **Contoso Expense Policy Agent**, click **Check now**.
+3. **Banner:** `... ok (HTTP 200, ### ms), no change, 0 new finding(s)`
+4. **Verify:** *Health* = **Healthy**, *Consecutive failures* = `0`. The **Card unreachable** finding is now
+   *State* = **Closed Complete**, with the work note `Recovered: live card fetched successfully (HTTP 200, ### ms).`
+   *Risk* goes back to **Medium**, because the B7 finding is still open.
 
 ### B11. Run the whole cycle from the list
-LAB: **Watched Agents** list, then the **Run watch cycle** banner button.
-**Expect:** a message with counts: agents checked, imported from AI Agent Studio, card changes, new findings, orphan findings.
 
-### B12. Switch off Now Assist
-1. LAB: open `sys_properties.list`, filter *Name starts with* `x_snc_a2a_sentinel`, and set `x_snc_a2a_sentinel.llm_enabled` to `false`.
-2. Create any new drift, for example B6 with scope `letters.send` and version `1.1.1`, then **Check now**.
+1. LAB: **All > A2A Sentinel > Watched Agents** (the list). Click **Run watch cycle** at the top of the list.
+2. **Banner:** `A2A Sentinel watch cycle: N agent(s) checked, 0 imported from AI Agent Studio, 0 card change(s), 0 new drift/health finding(s), 0 orphaned AI asset finding(s).`
+   *N* is the number of active watched agents.
+3. **Verify:** **All > A2A Sentinel > Health Probes**, sorted by *Probed on*, shows N new rows with the same timestamp.
 
-**Expect:** the new finding's **AI explanation** is the deterministic text (title plus recommendation), and detection is unchanged.
-Set the property back to `true` afterwards.
+### B12. Turn off Now Assist explanations
 
-### B13. Retire the orphaned AI asset (one-way, do it last or on camera)
-Open **A2AF0001001** and click **Retire orphaned AI asset**.
-**Expect:**
+1. LAB: type `sys_properties.list` in the filter navigator and press Enter. Filter on **Name starts with** `x_snc_a2a_sentinel`.
+2. Open **x_snc_a2a_sentinel.llm_enabled**, set **Value** to `false`, and click **Update**.
+3. PDI: open **Contoso HR Letters Agent**. Set **OAuth scopes (comma separated)** to `letters.draft,hr.records.read,letters.send`
+   and **Agent version** to `1.2.1`, then click **Update**.
+4. LAB: open **Contoso HR Letters Agent**, click **Check now**. **Banner:** `... card changed, 1 new finding(s)`
+5. Open `[MEDIUM] Agent requests additional OAuth scopes: letters.send - Contoso HR Letters Agent`.
+   Its *AI explanation (Now Assist)* is exactly:
+   `Agent requests additional OAuth scopes: letters.send. Review whether the newly requested OAuth scopes are justified and approve or reject them explicitly.`
+   Compare it with the B6 finding, whose explanation is free-form Now Assist prose. Detection is identical either way.
+6. Set **x_snc_a2a_sentinel.llm_enabled** back to `true`.
 
-- The message *"AI asset set to Retired. CI set to Retired / Retired."*, and the finding is *Closed Complete*.
-- The Affected AI asset's Install status is **Retired**; the Affected CI is **Retired / Retired**.
-- A later **Run watch cycle** creates no new orphan finding, because retired assets are excluded. Retired assets are also
-  excluded from AI Control Tower's licensing count.
+### B13. Orphaned AI asset: detect and retire
 
-This action is exercised here for the first time. If you see an error, note the message.
+*On the original lab, finding A2AF0001001 already existed; skip to step 6.* On a new lab, create an orphan first.
+Switch your update set to **Default** before steps 1 and 4, so test records don't land in a real update set.
 
-### B14. Watch any A2A agent, including your own
-LAB: **Watched Agents > New**. Name: `<deleted agent> (self)`. Card URL:
-`LAB/api/sn_aia/a2a/v2/agent_card/id/caa6f4d95c2b03107f44bec5dff3e2c8`. Source: *Manually watched*. Save, then **Check now**.
-**Expect:** a baseline (1 skill, oauth2). Then in AI Agent Studio, change the description of the tool
-*Find Application Support Group* and click **Check now** again. **Expect:** **Low**, *Skill ... definition changed*.
-Sentinel works with any A2A card URL, not just the fleet.
+1. LAB: **AI Agent Studio > Create and manage > AI agents > New**. Create an agent named `Sentinel Orphan Test` with any
+   description, role and instructions, and no tools. Save it.
+2. Make AI Control Tower inventory it: **All > System Definition > Scheduled Jobs**, open **Sync Now Assist AI Assets**,
+   and click **Execute Now** (or wait up to an hour for the hourly run).
+3. Verify the asset exists: type `alm_ai_system_digital_asset.list` in the filter navigator and filter
+   *Display name* = `Sentinel Orphan Test`. You should see *Install status* = **Deployed**.
+4. Delete the agent: type `sn_aia_agent.list`, open **Sentinel Orphan Test**, and click **Delete**.
+5. LAB: **Watched Agents** list, then **Run watch cycle**. **Banner** ends with `1 orphaned AI asset finding(s).`
+
+   > **If it says `0 orphaned AI asset finding(s)`:** check the asset from step 3. If its *Install status* changed to
+   > **Retired**, your release cleaned it up when the agent was deleted from its list, so the gap does not reproduce
+   > this way. The original orphan came from **uninstalling an app that contained an agent**. To reproduce exactly that,
+   > install any scoped app that defines an AI agent with
+   > `npx @servicenow/sdk install --auth <new-lab-alias>`, run **Sync Now Assist AI Assets** (step 2), then delete that
+   > app from its **Custom Application** record (**Delete** button), and repeat step 5.
+6. **All > A2A Sentinel > Open Findings**: open `[MEDIUM] AI asset "Sentinel Orphan Test" is still Deployed but its AI agent no longer exists - AI Control Tower inventory`
+   (on the original lab, it names the deleted agent). *Description* names the deleted agent's sys_id and who deleted it and when.
+   *Affected AI asset* and *Affected CI* are filled in.
+7. Click **Retire orphaned AI asset** (red button, top right).
+8. **Banner:** `A2A Sentinel: AI asset set to Retired. CI set to Retired / Retired.`
+9. **Verify:** *State* = **Closed Complete**, with the work note
+   `Retired by A2A Sentinel on request of <your name>. AI asset set to Retired. CI set to Retired / Retired.`
+   Click **(i)** on *Affected AI asset*: *Install status* = **Retired**. Click **(i)** on *Affected CI*:
+   *Install status* = **Retired** and *Operational status* = **Retired**.
+10. Click **Run watch cycle** again: `0 orphaned AI asset finding(s).`
+    The asset is no longer counted in AI Control Tower's licensing inventory, which excludes only Retired assets.
+
+### B14. Watch a real third-party agent by URL
+
+1. LAB: **Watched Agents**, click **New**.
+   - **Name**: `Atlassian Rovo (manual)`
+   - **Agent Card URL**: `https://a2a.atlassian.com/.well-known/agent.json`
+   - **Source**: **Manually watched**
+   - **Active**: ticked
+   - Click **Submit**.
+2. Open **Atlassian Rovo (manual)**, click **Check now**.
+3. **Banner:** `A2A Sentinel: Atlassian Rovo (manual): ok (HTTP 200, ### ms), card changed, 1 new finding(s)`
+   (*"card changed"* here means the first baseline was captured.)
+4. **Verify:** *Card version* = `1.0.0`, *Authentication* = `oauth2`, *Skills* = `2`, *Endpoint host* = `a2a.atlassian.com`, *Risk* = **Low**.
+   The finding is Severity **Low**, Finding type **Legacy card path**, short description
+   `[LOW] Card published at legacy path /.well-known/agent.json - Atlassian Rovo (manual)`.
+5. Sentinel works with **any** public A2A card URL, not only the simulated fleet.
 
 ### B15. Automation API (Postman)
-Use Basic auth with your admin user, and header `Accept: application/json`:
 
-| Request | Expect |
-|---|---|
-| `GET LAB/api/x_snc_a2a_sentinel/sentinel/status` | JSON: `agents[]` (health, risk, version, auth...) and `open_findings[]` |
-| `POST LAB/api/x_snc_a2a_sentinel/sentinel/run` | `{"imported":0,"checked":5,...}` |
-| `POST LAB/api/x_snc_a2a_sentinel/sentinel/agents/0cf3f56524b54ef780b6b84278ba6255/check` | Result of checking Vendor Risk |
+1. Find a watched agent's sys_id: in **Watched Agents**, right-click the **Contoso Vendor Risk Agent** row, then **Copy sys_id**.
+2. In Postman, for each request set **Authorization** to **Basic Auth** with your LAB admin user name and password, and add the header `Accept: application/json`.
 
-Negative test: call `/status` as a user **without** `x_snc_a2a_sentinel.admin`. **Expect:** 403 (the REST endpoint ACL).
+   | Method and URL | Expected |
+   |---|---|
+   | `GET https://<LAB>/api/x_snc_a2a_sentinel/sentinel/status` | `200`, `{"result": {"agents": [...], "open_findings": [...]}}`. Each agent has `health`, `risk`, `card_version`, `auth`, `endpoint_host` |
+   | `POST https://<LAB>/api/x_snc_a2a_sentinel/sentinel/run` | `200`, `{"result": {"imported": 0, "checked": N, "changed": 0, "findings": 0, "orphans": 0}}` |
+   | `POST https://<LAB>/api/x_snc_a2a_sentinel/sentinel/agents/<sys_id>/check` | `200`, `{"result": {"changed": false, "findings": 0, "message": "Contoso Vendor Risk Agent: ok (HTTP 200, ### ms), no change, 0 new finding(s)"}}` |
+
+3. **Negative test (after B16):** set a password on `sentinel.viewer` (open the user, then **Set Password**) and call `/status`
+   with that user. **Expect HTTP 403**: the REST endpoint ACL only allows `x_snc_a2a_sentinel.admin`.
 
 ### B16. Role-based access
-1. LAB: create user `sentinel.viewer` with role `x_snc_a2a_sentinel.viewer`, then impersonate it.
-   **Expect:** the A2A Sentinel menu and all lists are visible and readable. There are **no** Check now, Run watch cycle,
-   Accept risk or Retire buttons, and fields are read-only; you cannot create a watched agent.
-2. Add role `x_snc_a2a_sentinel.admin` to the user and impersonate again.
-   **Expect:** the buttons appear, and you can create and edit watched agents.
+
+1. LAB: **All > User Administration > Users**, click **New**. *User ID* `sentinel.viewer`, *First name* `Sentinel`,
+   *Last name* `Viewer`, then **Submit**.
+2. Open **Sentinel Viewer**, go to the **Roles** related list, click **Edit...**, add `x_snc_a2a_sentinel.viewer`, then **Save**.
+3. Click your avatar (top right), then **Impersonate user**, then **Sentinel Viewer**.
+4. **Verify (viewer):**
+   - **All > A2A Sentinel** shows the 5 modules.
+   - The **Watched Agents** list has **no New** and **no Run watch cycle** button.
+   - A watched agent's form is **read-only**, with **no Check now** button.
+   - In **Open Findings**, a finding has **no Accept risk** and **no Retire** button.
+5. Avatar, then **End impersonation**. Add the role `x_snc_a2a_sentinel.admin` to Sentinel Viewer, then impersonate again.
+6. **Verify (admin):** **New**, **Run watch cycle**, **Check now** and **Accept risk** are visible, and you can edit and create watched agents.
+7. End impersonation.
 
 ---
 
 ## Reset after testing
 
-1. **PDI**: Scripts - Background, scope *A2A Contoso Fleet*, then run [reset/fleet-reset.js](reset/fleet-reset.js).
-2. **LAB**: Scripts - Background, scope *A2A Sentinel*, then run [reset/sentinel-reset.js](reset/sentinel-reset.js).
-3. Delete the watched agent from B14 if you created it, and restore the tool description you changed in AI Agent Studio.
-
-B13 (retirement) is not undone by the reset scripts.
+1. **PDI**: **All > System Definition > Scripts - Background**. Set **in scope** to **A2A Contoso Agent Fleet**, paste
+   [reset/fleet-reset.js](reset/fleet-reset.js), and click **Run script**. You should see `Restored travel-booking`, and so on for all four.
+2. **LAB**: **Scripts - Background**. Set **in scope** to **A2A Sentinel**, paste [reset/sentinel-reset.js](reset/sentinel-reset.js),
+   and click **Run script**. You should see the deleted counts and `Fresh baselines captured: {...}`.
+3. LAB: delete the watched agent **Atlassian Rovo (manual)** from B14, and set **x_snc_a2a_sentinel.llm_enabled** back
+   to `true` if you skipped that in B12.
+4. B13's retirement is deliberate and is not undone.
