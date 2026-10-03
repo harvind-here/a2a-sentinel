@@ -5,16 +5,22 @@ Sentinel app goes on any instance you are testing on. A lab instance only lasts 
 
 ## Sentinel on a new lab instance (about 10 minutes)
 
-1. Add credentials. You type the password yourself; the SDK stores it locally, never in the repo.
+1. Make sure the account you'll deploy with has the **admin** role on the new lab. A user you create yourself on a lab
+   starts with **no roles**: the SDK can sign in, but every system table returns HTTP 403 and the install fails.
+   As the lab's `admin` user:
+   1. Open **User Administration > Users**, then your user.
+   2. In the **Roles** related list, click **Edit...**, add `admin`, then click **Save**.
+   3. If `admin` can't be added, first go to the avatar menu, then **Elevate role**, then **security_admin**.
+2. Add credentials. You type the password yourself; the SDK stores it locally, never in the repo.
    ```bash
-   npx @servicenow/sdk auth --add https://<new-lab>.service-now.com --type basic --alias lab_instance_2
+   npx @servicenow/sdk auth --add https://<new-lab>.service-now.com --type basic --alias lab_2
    ```
-2. Point the deploy script at it: in `sentinel/package.json`, set `"deploy": "now-sdk install --auth lab_instance_2"`.
-3. Build and install:
+3. Point the deploy script at it: in `sentinel/package.json`, set `"deploy": "now-sdk install --auth lab_2"`.
+4. Build and install:
    ```bash
    cd sentinel && npm install && npm run build && npm run deploy
    ```
-4. Run a first watch cycle: **A2A Sentinel > Watched Agents > Run watch cycle**.
+5. Wake the fleet PDI (it hibernates when unused), then run a first watch cycle: **A2A Sentinel > Watched Agents > Run watch cycle**.
    - The four Contoso agents are pre-seeded and watched immediately.
    - Consumed A2A agents registered in that instance's AI Agent Studio (for example Atlassian Rovo, if the lab
      ships with it) are imported automatically, with ServiceNow's registered card as the baseline.
