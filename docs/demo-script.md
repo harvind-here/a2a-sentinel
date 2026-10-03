@@ -68,7 +68,7 @@ In **Sentinel**, run **Check now**. Expected: **Medium**, *Agent requests additi
 
 ## 6. Governed clean-up of the orphaned AI asset (1 min)
 
-Open the **Orphaned AI asset** finding: the evidence shows who deleted the agent and when, and the licensing impact.
+Open the **Orphaned AI asset** finding: the evidence shows who deleted the agent and when, and that its asset and CI are still Deployed.
 Click **Retire orphaned AI asset**. The AI asset becomes *Retired* and the CI *Retired / Retired*, and the finding closes.
 Verify in AI Control Tower (the asset record) or on the CI.
 

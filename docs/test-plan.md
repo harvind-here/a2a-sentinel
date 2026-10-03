@@ -17,13 +17,15 @@ Tips:
 - **The PDI hibernates when it's unused.** While it sleeps, every Contoso card URL returns an *Instance Hibernating*
   page, and Sentinel correctly marks the four Contoso agents **Down**. Wake it from developer.servicenow.com before
   testing (see *Before you start Part B*).
-- **This is the second lab.** The original lab (`nlinst04702984`) expired on 3 Oct 2026. Wherever this plan says
-  "the original lab", it describes data that existed only there:
-  - the Atlassian Rovo agent registered in AI Agent Studio (A4, A6, A7);
-  - the orphan finding A2AF0001001 (A7, B13).
-
-  On this lab, A4 shows 4 rows (no Rovo). To see A6 and A7, register an external agent in AI Agent Studio
-  ([migration.md](migration.md), optional section). To get an orphan, follow B13 from step 1.
+- **This is the second lab.** The first lab (`nlinst04702984`) expired on 3 Oct 2026. Its demo data was recreated
+  here the same day, so Part A and B13 work exactly as before:
+  - **Atlassian Rovo** is registered in AI Agent Studio as an external A2A agent. It went through AI Agent Studio's own
+    onboarding API (`sn_aia.ExternalAgentGuidedSetupUtil`: create provider, discover, onboard), which creates the
+    same records as **Add > External > Agent2Agent (A2A) protocol** in the UI.
+  - **An orphaned AI asset** exists. The agent *Sentinel Orphan Test* was created, inventoried by AI Control Tower's
+    *Sync Now Assist AI Assets* job, then deleted (B13 steps 1 to 4).
+  - Finding numbers differ from the first lab: **A2AF0001001** is Rovo's legacy-path finding and **A2AF0001003** is
+    the orphan.
 
 ---
 
@@ -53,12 +55,12 @@ Agent Card on every request. `POST .../agents/vendor-risk/rpc` answers A2A `mess
    then group by *Class*. You'll find 4 tables (`sys_db_object`), 1 Script Include, 1 scheduled job (`sysauto_script`),
    4 UI actions, 1 REST service with 3 routes (`sys_ws_definition` / `sys_ws_operation`), 17 ACLs (16 table + 1 REST),
    3 properties, 2 roles, 4 forms and 4 list layouts, and 5 navigator modules.
-3. **Cross-scope privileges** (`sys_scope_privilege`): about 33 rows, all *Allowed*.
+3. **Cross-scope privileges** (`sys_scope_privilege`): about 30 rows, all *Allowed* (28 on this lab after the first cycles).
    - **13** are declared in the source (`src/fluent/security/access.now.ts`), such as reading `sn_aia_agent` and writing `cmdb_ci`.
-   - **About 20** were recorded automatically by the platform's **runtime access tracking** the first time the code
+   - **The rest** were recorded automatically by the platform's **runtime access tracking** the first time the code
      ran: every platform API a scoped app calls (`RESTMessageV2.execute`, `GlideDigest.getSHA256Hex`, ...) is logged
      and allowed in *Tracking* mode.
-   - On the original lab, **4 declared rows showed an empty Target scope**. An early build wrote scope names instead of
+   - On the first lab, **4 declared rows showed an empty Target scope**. An early build wrote scope names instead of
      sys_ids, and runtime tracking had already created correct twins before the fix. A fresh install (like this lab) is clean.
 
 **Behind the scenes:** all of it is generated from the Fluent source in `sentinel/src/fluent`. Nothing was built by hand.
@@ -84,7 +86,7 @@ Open **Atlassian Rovo** in Watched Agents.
 - **Source** is *Consumed via AI Agent Studio*; **ServiceNow AI agent** and **AI Function CI** are filled in automatically.
 - **Card Snapshots** has exactly 1 row, with Source *ServiceNow registration record*: the card ServiceNow stored when
   Rovo was registered. There is no *Live fetch* snapshot because the live card matches it exactly (no drift, no false positive).
-- Finding **A2AF0001002 (Low)**: Rovo publishes its card at the legacy path `/.well-known/agent.json` (a real finding).
+- Finding **A2AF0001001 (Low)**: Rovo publishes its card at the legacy path `/.well-known/agent.json` (a real finding).
 
 **Behind the scenes:** `syncFromAgentStudio()` reads `sn_aia_agent` (type external), follows
 card record, then discovery record, then provider, to find the card URL, and imports the registered card as the baseline.
@@ -93,12 +95,15 @@ The CI is found through AI Control Tower's link: agent, then AI asset (`servicen
 ### A7. The problem Sentinel solves (evidence in AI Control Tower)
 1. From Rovo's watched-agent record, open its **AI Function CI**. The **Card** and **Well-Known URI** fields are **empty**:
    AI Control Tower knows Rovo exists but not what it can do.
-2. Compare: open `cmdb_ci_function_ai.list` and filter *Name* on your exposed internal agent's name. **Two** CIs have this name:
-   - The one whose **Object ID starts with `caa6f4d9`** (most recent discovery: today) is your live agent. Its **Card**
-     and **Well-Known URI** are filled, because the CMDB only stores cards for agents ServiceNow *exposes*.
-   - The one whose **Object ID starts with `d620eaa0`** (last discovered 24 Sep) is the orphan from step 3, with no card.
-3. Open finding **A2AF0001001 (Orphaned AI asset)**. The evidence says the agent was deleted on 24 Sep by `admin`. Open the
-   **Affected AI asset**: Install status is still **Deployed**. Open the **Affected CI**: still **Installed / Operational**.
+2. Compare with an agent ServiceNow *exposes*. The CMDB only stores cards for agents marked **External discoverable**
+   (`sn_aia_agent_config`, field *External discoverable*).
+   - On the first lab, an internal agent exposed via A2A had a 2,653-character card on its CI.
+   - On this lab no agent is externally discoverable, so every AI Function CI has an empty card. You can confirm this
+     with `cmdb_ci_function_ai.list` filtered on *Card is not empty*: no records.
+3. Open finding **A2AF0001003 (Orphaned AI asset)**. The description says agent `8853838044f7...` was deleted on
+   3 Oct 2026 at 13:24:13 by `harvind`. Open the **Affected AI asset**: Install status is still **Deployed**. Open the
+   **Affected CI**: still **Installed / Operational**. AI Control Tower's hourly sync ran after the deletion and did not
+   touch either record.
 
 See [evidence.md](evidence.md) for the code-level reasons.
 
@@ -195,9 +200,9 @@ Sentinel fills them in.
 
    While the PDI sleeps, Sentinel sees every Contoso card as broken. After two checks it marks the four agents **Down**
    and raises `[HIGH] Endpoint no longer returns a valid Agent Card - Contoso ...` findings. That's correct behaviour,
-   and it happened for real on 1 Oct 2026 (A2AF0001020 to A2AF0001023). The findings close themselves on the first
+   and it happened for real on the first lab on 1 Oct 2026. The findings close themselves on the first
    successful check after the PDI wakes up.
-2. **Run steps 1 and 2 of the [Reset](#reset-after-testing)** so you start from a clean slate.
+2. **If the starting state in step 3 doesn't match**, run steps 1 and 2 of the [Reset](#reset-after-testing).
 3. **Check the starting state.** LAB: **All > A2A Sentinel > Watched Agents**. Every Contoso agent shows *Health*
    **Healthy**, *Risk* **None**, and:
 
@@ -424,7 +429,7 @@ before it raises a finding.
    **Run watch cycle** at the top of the list.
 3. **Expect:**
    - Banner `A2A Sentinel watch cycle: N agent(s) checked, 0 imported from AI Agent Studio, 0 card change(s), 0 new drift/health finding(s), 0 orphaned AI asset finding(s).`
-   - *N* is the number of active Watched Agents (5 on the original lab: the 4 Contoso agents plus Atlassian Rovo).
+   - *N* is the number of active Watched Agents (5 on this lab: the 4 Contoso agents plus Atlassian Rovo).
    - **All > A2A Sentinel > Health Probes**, newest first, shows N new rows with the same time.
 
 ### B12. Turn off Now Assist explanations
@@ -452,10 +457,11 @@ before it raises a finding.
 
 **No PDI step.** This test is about AI Control Tower's inventory on the LAB, not about a vendor.
 
-**The original lab already has an orphan:** finding **A2AF0001001**,
-`[MEDIUM] AI asset "<deleted agent>" is still Deployed but its AI agent no longer exists - AI Control Tower inventory`.
-Go straight to step 6. **On a new lab**, create an orphan first with steps 1 to 5. Before steps 1 and 4, switch your
-update set to **Default** so test records don't land in a real update set.
+**This lab already has an orphan:** finding **A2AF0001003**,
+`[MEDIUM] AI asset "Sentinel Orphan Test" is still Deployed but its AI agent no longer exists - AI Control Tower inventory`.
+Steps 1 to 4 were done for you on 3 Oct 2026, so go straight to step 6. **On any other new lab**, create an orphan
+first with steps 1 to 5. Before steps 1 and 4, switch your update set to **Default** so test records don't land in a
+real update set.
 
 1. LAB: **AI Agent Studio > Create and manage > AI agents > New**. Create an agent named `Sentinel Orphan Test` with any
    description, role and instructions, and no tools. Save it.
@@ -475,8 +481,8 @@ update set to **Default** so test records don't land in a real update set.
    > 3. Delete that app from its **Custom Application** record (**Delete** button).
    > 4. Repeat this step.
 6. LAB: **All > A2A Sentinel > Open Findings**, then open the orphan finding.
-   - *Description* names the deleted agent's sys_id, who deleted it, and when. On the original lab it reads
-     `... was deleted on 2026-09-24 13:37:14 by admin ...`.
+   - *Description* names the deleted agent's sys_id, who deleted it, and when. On this lab it reads
+     `Source agent 8853838044f703107f44d2f44312c379 was deleted on 2026-10-03 13:24:13 by harvind. ...`
    - *Affected AI asset* and *Affected CI* are filled in.
 7. Click **Retire orphaned AI asset** (red button, top right). There is no undo button for this.
 8. **Expect:**
@@ -485,8 +491,8 @@ update set to **Default** so test records don't land in a real update set.
      `Retired by A2A Sentinel on request of <your name>. AI asset set to Retired. CI set to Retired / Retired.`
    - Click **(i)** next to *Affected AI asset*: *Install status* = **Retired**.
    - Click **(i)** next to *Affected CI*: *Install status* = **Retired** and *Operational status* = **Retired**.
-9. Click **Run watch cycle** again. The banner shows `0 orphaned AI asset finding(s).` The asset no longer counts in
-   AI Control Tower's licensing inventory, which excludes only Retired assets.
+9. Click **Run watch cycle** again. The banner shows `0 orphaned AI asset finding(s).` *Retired* is also the only state
+   that takes an asset out of AI Control Tower's licensing count ([evidence.md](evidence.md), Gap 4).
 
 ### B14. Watch a real third-party agent (the one test where you create a Watched Agent)
 

@@ -14,12 +14,12 @@ Built with the **ServiceNow SDK (Fluent)**, AI Agent Studio / A2A, AI Control To
 
 ## The problem (verified in platform code)
 
-| # | Gap in AI Control Tower (sn_ai_governance 5.0.6 / sn_aia 6.0.23) | Consequence |
+| # | Gap in AI Control Tower (verified on sn_ai_governance 5.0.6 / sn_aia 6.0.23, re-verified on 7.0.1 / 8.0.12) | Consequence |
 |---|---|---|
 | 1 | The Agent Card is written to the CMDB only for agents ServiceNow **exposes**, not ones it **consumes** | Governance cannot see a third-party agent's skills or authentication |
 | 2 | The consumed agent's card is captured **once**, at registration, and never refreshed | New destructive skills, removed auth or moved endpoints go unnoticed |
 | 3 | The agent sync iterates only *existing* agents, so a deleted agent's asset stays **Deployed** | Stale AI inventory and CMDB |
-| 4 | Licensing aggregation excludes only *Retired* assets | Orphaned assets remain in the AI inventory count used for licensing |
+| 4 | Only a *Retired* (or Cancelled) state takes an asset out of the licensing count | An orphaned asset can keep counting toward AI Control Tower licensing |
 | 5 | The only external-agent security job covers AWS Bedrock; A2A endpoints are never probed | No health or posture signal for A2A agents |
 
 Details, with code references: **[docs/evidence.md](docs/evidence.md)**

@@ -601,7 +601,7 @@ A2ASentinel.prototype = {
                 key: 'orphan:' + asset.getUniqueValue(),
                 title: 'AI asset "' + asset.getDisplayValue() + '" is still Deployed but its AI agent no longer exists',
                 detail: 'Source agent ' + agentId + (deleted ? ' was deleted on ' + del.getValue('sys_created_on') + ' by ' + del.getValue('sys_created_by') : ' no longer exists') +
-                    '. AI Control Tower\'s agent sync only iterates existing agents, so this asset (and its CI) stay "Deployed" and remain in the AI inventory used for licensing.',
+                    '. AI Control Tower\'s agent sync only visits agents that still exist, so this asset and its CI stay "Deployed" in the AI inventory, where they can still count toward AI Control Tower licensing, until they are retired.',
                 evidence: {
                     asset: asset.getUniqueValue(),
                     asset_install_status: asset.getDisplayValue('install_status'),
