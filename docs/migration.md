@@ -27,6 +27,25 @@ Sentinel app goes on any instance you are testing on. A lab instance only lasts 
    - On instances without AI Control Tower or AI Agents, the import and orphan steps skip themselves. Drift and
      health monitoring still run.
 
+## Recreate the demo data (Rovo and an orphaned AI asset, about 5 minutes)
+
+A new lab has no external A2A agent and no orphaned AI asset, so Part A (A4, A6, A7) and test B13 have nothing to
+show. Two background scripts in [lab-setup/](lab-setup/) recreate both, the way they happen in real life. Run them as
+admin in **System Definition > Scripts - Background**, scope **global**:
+
+1. [1-register-rovo-and-test-agent.js](lab-setup/1-register-rovo-and-test-agent.js) does three things:
+   - registers **Atlassian Rovo** through AI Agent Studio's own onboarding API (the same records as
+     **Add > External > Agent2Agent (A2A) protocol**);
+   - creates the agent **Sentinel Orphan Test**;
+   - starts AI Control Tower's **Sync Now Assist AI Assets** job.
+2. Wait 2 to 3 minutes for the job to finish. **System Logs > All** shows `Sync Now Assist AI Assets: Completed`.
+3. [2-create-orphan.js](lab-setup/2-create-orphan.js) deletes **Sentinel Orphan Test**. Its AI asset stays
+   *Deployed*: that's the orphan.
+4. **A2A Sentinel > Watched Agents > Run watch cycle**. The banner shows `1 imported from AI Agent Studio` and
+   `1 orphaned AI asset finding(s)`.
+
+Both scripts are safe to run twice.
+
 ## Optional: consume a Contoso agent through AI Agent Studio
 
 This demonstrates *drift since registration* against ServiceNow's own registration record:
