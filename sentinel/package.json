@@ -8,7 +8,7 @@
     },
     "scripts": {
         "build": "now-sdk build",
-        "deploy": "now-sdk install --auth lab_instance_1",
+        "deploy": "now-sdk install --auth lab_2",
         "transform": "now-sdk transform",
         "types": "now-sdk dependencies"
     },

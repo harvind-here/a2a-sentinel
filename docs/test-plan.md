@@ -5,7 +5,7 @@ how Sentinel reacts. Every test lists what to do, what you should see, and what 
 
 | Shortcut | URL |
 |---|---|
-| **LAB** (Sentinel, consumer of agents) | `https://nowlearning-nlinst04702984-6h36w-0001.lab.service-now.com` |
+| **LAB** (Sentinel, consumer of agents) | `https://nowlearning-nlinst04752573-4jhzz-0001.lab.service-now.com` (now-sdk alias `lab_2`) |
 | **PDI** (Contoso fleet, third-party provider) | `https://dev342222.service-now.com` |
 
 Tips:
@@ -17,8 +17,13 @@ Tips:
 - **The PDI hibernates when it's unused.** While it sleeps, every Contoso card URL returns an *Instance Hibernating*
   page, and Sentinel correctly marks the four Contoso agents **Down**. Wake it from developer.servicenow.com before
   testing (see *Before you start Part B*).
-- **On a new lab** (after migrating): A6 and A7 need an external agent registered in that lab's AI Agent Studio (the old lab
-  had Atlassian Rovo). The orphan in A7 step 3 existed only on the old lab; B13 shows how to create one.
+- **This is the second lab.** The original lab (`nlinst04702984`) expired on 3 Oct 2026. Wherever this plan says
+  "the original lab", it describes data that existed only there:
+  - the Atlassian Rovo agent registered in AI Agent Studio (A4, A6, A7);
+  - the orphan finding A2AF0001001 (A7, B13).
+
+  On this lab, A4 shows 4 rows (no Rovo). To see A6 and A7, register an external agent in AI Agent Studio
+  ([migration.md](migration.md), optional section). To get an orphan, follow B13 from step 1.
 
 ---
 
@@ -53,9 +58,8 @@ Agent Card on every request. `POST .../agents/vendor-risk/rpc` answers A2A `mess
    - **About 20** were recorded automatically by the platform's **runtime access tracking** the first time the code
      ran: every platform API a scoped app calls (`RESTMessageV2.execute`, `GlideDigest.getSHA256Hex`, ...) is logged
      and allowed in *Tracking* mode.
-   - On this lab, **4 declared rows show an empty Target scope**. An early build wrote scope names instead of sys_ids,
-     and runtime tracking had already created correct twins before the fix, so the platform could not update them.
-     Access works through the twins. A fresh install is clean.
+   - On the original lab, **4 declared rows showed an empty Target scope**. An early build wrote scope names instead of
+     sys_ids, and runtime tracking had already created correct twins before the fix. A fresh install (like this lab) is clean.
 
 **Behind the scenes:** all of it is generated from the Fluent source in `sentinel/src/fluent`. Nothing was built by hand.
 
