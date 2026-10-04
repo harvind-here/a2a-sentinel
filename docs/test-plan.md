@@ -539,6 +539,8 @@ real update set.
    | `POST https://<LAB>/api/x_snc_a2a_sentinel/sentinel/run` | `200`, `{"result": {"imported": 0, "checked": N, "changed": 0, "findings": 0, "orphans": 0}}` |
    | `POST https://<LAB>/api/x_snc_a2a_sentinel/sentinel/agents/<sys_id>/check` | `200`, `{"result": {"changed": false, "findings": 0, "message": "Contoso Vendor Risk Agent: ok (HTTP 200, ### ms), no change, 0 new finding(s)"}}` |
 
+   ServiceNow's JSON serializer may print some counts as decimals (`"findings": 0.0`, `"imported": 1.0`). The values are the same.
+
 3. **Negative test (after B16):** set a password on `sentinel.viewer` (open the user, then **Set Password**), and call
    `/status` as that user. **Expect HTTP 403**: only `x_snc_a2a_sentinel.admin` may call the API.
 
