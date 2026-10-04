@@ -61,9 +61,11 @@ flowchart LR
 | **Findings** | Extend Task (`A2AF…` numbers, state, work notes, priority from severity), fingerprint de-duplication, a Now Assist explanation with a deterministic fallback, a recommended action, and JSON evidence |
 | **Automation API** | `GET /status`, `POST /run`, `POST /agents/{id}/check`, restricted to the admin role by a REST ACL |
 
-## Verified run (30 Sep 2026)
+## Verified runs
 
-Drift introduced on the provider side, then two watch cycles:
+The full hands-on test plan (16 scenarios, [docs/test-plan.md](docs/test-plan.md)) was run end to end on 4 Oct 2026
+on a lab with sn_aia 8.0.12 and AICT 7.0.1, after a first run on 30 Sep (sn_aia 6.0.23, AICT 5.0.6). Drift was
+introduced on the provider side and picked up from ServiceNow:
 
 | Finding | Severity | Agent |
 |---|---|---|
@@ -72,16 +74,19 @@ Drift introduced on the provider side, then two watch cycles:
 | Runtime endpoint moved to a different host | High | Contoso Travel Booking Agent |
 | Agent card unreachable (Down after 2 failed checks), **auto-closed on recovery** | High | Contoso Expense Policy Agent |
 | Card changed without a version bump (still 1.4.2) | Medium | Contoso Vendor Risk Agent |
-| Agent requests additional OAuth scopes: hr.records.read | Medium | Contoso HR Letters Agent |
-| AI asset "<deleted agent>" still Deployed but its agent no longer exists | Medium | AI Control Tower inventory |
+| Agent requests additional OAuth scopes (hr.records.read, later letters.send) | Medium | Contoso HR Letters Agent |
+| Skill "Summarize receipts" was removed | Medium | Contoso Expense Policy Agent |
+| A2A protocol version changed (0.3.0 -> 1.0.0) | Medium | Contoso HR Letters Agent |
+| AI asset still Deployed but its agent no longer exists, **retired with the audited Retire action** | Medium | AI Control Tower inventory |
+| Agent capabilities changed (streaming turned on) | Low | Contoso HR Letters Agent |
 | Card published at legacy path /.well-known/agent.json (**real-world**) | Low | Atlassian Rovo |
 
-Atlassian Rovo's live card matched ServiceNow's registration snapshot exactly, so there were **no false positives**.
-An example Now Assist explanation (Critical finding):
+The card ServiceNow stored when Rovo was registered and Rovo's live card produce the same SHA-256 hash, so there
+were **no false positives**. An example Now Assist explanation (Critical finding):
 
 > *The Contoso Vendor Risk Agent no longer declares any authentication method, changing from using an apiKey to none.
-> This is critical because it removes a key security control, potentially allowing unauthorized access. Review and
-> update the agent configuration to reinstate proper authentication before use.*
+> This is critical because it removes a key security control, potentially allowing unauthorized access. Please review
+> and restore appropriate authentication to ensure secure communication.*
 
 ## Repository layout
 
@@ -127,8 +132,8 @@ Moving to a new instance: [docs/migration.md](docs/migration.md).
 ## Limitations and honest notes
 
 - The Contoso agents are simulated, although served live over HTTPS from a separate instance; Atlassian Rovo is real.
-- Gaps were verified against one release (sn_aia 6.0.23, AICT 5.0.6); ServiceNow may close them in later releases.
-  The CI class already has `card` and `well_known_uri` fields.
+- Gaps were verified on two releases (sn_aia 6.0.23 / AICT 5.0.6 and sn_aia 8.0.12 / AICT 7.0.1); ServiceNow may
+  close them in later releases. The CI class already has `card` and `well_known_uri` fields.
 - Health checks cover the card endpoint (status, latency, validity), not TLS certificate expiry or authenticated
   `message/send` probes. That is deliberate, to avoid billable calls to third-party agents.
 - The *Retire orphaned AI asset* action modifies AI Control Tower records; review before using it in production.

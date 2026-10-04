@@ -484,8 +484,8 @@ real update set.
    > **If it says `0 orphaned AI asset finding(s)`:** check the asset from step 3. If it's now **Retired**, your release
    > cleans up agents deleted from their list, so the gap doesn't reproduce this way. The original orphan came from
    > **uninstalling an app that contained an agent**. To reproduce that:
-   > 1. Install any scoped app that defines an AI agent with
-   >    `npx @servicenow/sdk install --auth <new-lab-alias>`.
+   > 1. Install any scoped app that defines an AI agent (for example a small ServiceNow SDK project with one
+   >    `AiAgent`) with `npx @servicenow/sdk install --auth <new-lab-alias>`.
    > 2. Run **Sync Now Assist AI Assets** (step 2).
    > 3. Delete that app from its **Custom Application** record (**Delete** button).
    > 4. Repeat this step.
