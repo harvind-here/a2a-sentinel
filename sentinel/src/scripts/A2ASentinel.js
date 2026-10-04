@@ -649,7 +649,8 @@ A2ASentinel.prototype = {
                 notes.push('CI set to Retired / Retired.');
             }
         }
-        finding.setValue('work_notes', 'Retired by A2A Sentinel on request of ' + gs.getUserDisplayName() + '. ' + notes.join(' '));
+        // Journal fields need direct assignment; setValue() does not create a journal entry.
+        finding.work_notes = 'Retired by A2A Sentinel on request of ' + gs.getUserDisplayName() + '. ' + notes.join(' ');
         finding.setValue('state', '3');
         finding.update();
         return notes.join(' ');
@@ -700,7 +701,7 @@ A2ASentinel.prototype = {
         f.addActiveQuery();
         f.query();
         while (f.next()) {
-            f.setValue('work_notes', note);
+            f.work_notes = note;
             f.setValue('state', '3');
             f.update();
         }
