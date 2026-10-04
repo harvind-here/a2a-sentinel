@@ -47,9 +47,17 @@ UiAction({
     showUpdate: true,
     list: { showBannerButton: true, style: 'primary' },
     roles: [sentinelAdmin],
-    script: `var s = new x_snc_a2a_sentinel.A2ASentinel().runCycle();
-gs.addInfoMessage('A2A Sentinel watch cycle: ' + s.checked + ' agent(s) checked, ' + s.imported + ' imported from AI Agent Studio, ' +
-    s.changed + ' card change(s), ' + s.findings + ' new drift/health finding(s), ' + s.orphans + ' orphaned AI asset finding(s).');
+    // A server-side list button runs once per listed (or selected) record. The session marker makes one click
+    // run one cycle: later invocations in the same request start right after the previous run finished.
+    script: `var KEY = 'x_snc_a2a_sentinel.cycle_finished_at';
+var session = gs.getSession();
+var last = parseInt(session.getClientData(KEY) || '0', 10);
+if (new GlideDateTime().getNumericValue() - last > 5000) {
+    var s = new x_snc_a2a_sentinel.A2ASentinel().runCycle();
+    session.putClientData(KEY, String(new GlideDateTime().getNumericValue()));
+    gs.addInfoMessage('A2A Sentinel watch cycle: ' + s.checked + ' agent(s) checked, ' + s.imported + ' imported from AI Agent Studio, ' +
+        s.changed + ' card change(s), ' + s.findings + ' new drift/health finding(s), ' + s.orphans + ' orphaned AI asset finding(s).');
+}
 action.setRedirectURL('x_snc_a2a_sentinel_agent_list.do');`,
 })
 
