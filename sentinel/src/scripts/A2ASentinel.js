@@ -627,33 +627,46 @@ A2ASentinel.prototype = {
         return ci.next() ? ci : null;
     },
 
-    /** Governed clean-up, invoked from the "Retire orphaned AI asset" UI action. */
+    /**
+     * Governed clean-up, invoked from the "Retire orphaned AI asset" UI action.
+     * Each change is re-read before it is reported; if one did not stick, the finding stays open.
+     * Returns { ok, message }.
+     */
     retireOrphan: function (finding) {
-        const assetId = finding.getValue('affected_asset');
-        const ciId = finding.getValue('affected_ci');
         const notes = [];
-        if (assetId) {
-            const asset = new GlideRecord('alm_ai_system_digital_asset');
-            if (asset.get(assetId)) {
-                asset.setValue('install_status', '32');
-                asset.update();
-                notes.push('AI asset set to Retired.');
-            }
-        }
-        if (ciId) {
-            const ci = new GlideRecord('cmdb_ci');
-            if (ci.get(ciId)) {
-                ci.setValue('install_status', '7');
-                ci.setValue('operational_status', '6');
-                ci.update();
-                notes.push('CI set to Retired / Retired.');
-            }
+        const failures = [];
+        const changes = [
+            { table: 'alm_ai_system_digital_asset', sysId: finding.getValue('affected_asset'), values: { install_status: '32' },
+                note: 'AI asset set to Retired.', label: 'the AI asset' },
+            { table: 'cmdb_ci', sysId: finding.getValue('affected_ci'), values: { install_status: '7', operational_status: '6' },
+                note: 'CI set to Retired / Retired.', label: 'the CI' },
+        ].filter((c) => c.sysId);
+        changes.forEach((c) => {
+            const gr = new GlideRecord(c.table);
+            if (!gr.get(c.sysId)) return;
+            Object.keys(c.values).forEach((field) => gr.setValue(field, c.values[field]));
+            gr.update();
+        });
+        // Verify only after both updates: asset/CI synchronization rules can touch the other record.
+        changes.forEach((c) => {
+            const gr = new GlideRecord(c.table);
+            if (!gr.get(c.sysId)) return;
+            if (Object.keys(c.values).every((field) => gr.getValue(field) === c.values[field])) notes.push(c.note);
+            else failures.push(c.label);
+        });
+
+        if (failures.length) {
+            gs.error(this.LOG + 'Retire failed for ' + failures.join(' and ') + ' (finding ' + finding.getValue('number') + ')');
+            return {
+                ok: false,
+                message: 'Could not retire ' + failures.join(' and ') + '. The finding stays open. ' + notes.join(' '),
+            };
         }
         // Journal fields need direct assignment; setValue() does not create a journal entry.
         finding.work_notes = 'Retired by A2A Sentinel on request of ' + gs.getUserDisplayName() + '. ' + notes.join(' ');
         finding.setValue('state', '3');
         finding.update();
-        return notes.join(' ');
+        return { ok: true, message: notes.join(' ') };
     },
 
     /* ------------------------------------------------------------------ */

@@ -500,6 +500,8 @@ real update set.
      `Retired by A2A Sentinel on request of <your name>. AI asset set to Retired. CI set to Retired / Retired.`
    - Click **(i)** next to *Affected AI asset*: *Install status* = **Retired**.
    - Click **(i)** next to *Affected CI*: *Install status* = **Retired** and *Operational status* = **Retired**.
+   - Sentinel re-reads both records before it closes the finding. If something blocked the change, you get a red
+     banner `Could not retire ...` instead, and the finding stays open.
 9. Click **Run watch cycle** again. The banner shows `0 orphaned AI asset finding(s).` *Retired* is also the only state
    that takes an asset out of AI Control Tower's licensing count ([evidence.md](evidence.md), Gap 4).
 

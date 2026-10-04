@@ -71,8 +71,9 @@ UiAction({
     condition: "current.finding_type == 'orphan_ai_asset' && current.active == true",
     form: { showButton: true, style: 'destructive' },
     roles: [sentinelAdmin],
-    script: `var summary = new x_snc_a2a_sentinel.A2ASentinel().retireOrphan(current);
-gs.addInfoMessage('A2A Sentinel: ' + summary);
+    script: `var result = new x_snc_a2a_sentinel.A2ASentinel().retireOrphan(current);
+if (result.ok) gs.addInfoMessage('A2A Sentinel: ' + result.message);
+else gs.addErrorMessage('A2A Sentinel: ' + result.message);
 action.setRedirectURL(current);`,
 })
 
