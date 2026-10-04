@@ -331,7 +331,8 @@ under the same version number.
 **Simulates:** the agent's runtime URL suddenly points at a different host. That could be a migration or a hijack.
 
 1. **PDI:** **Fleet Agents**, then click **Contoso Travel Booking Agent**.
-   - **Endpoint override** (row 6): type `https://contoso-agents.example.net/a2a/travel`
+   - **Endpoint override** (row 6): it shows as empty text with a **lock icon** at the far right of the row. Click the
+     lock to unlock the field, then type `https://contoso-agents.example.net/a2a/travel`
    - **Agent version** (row 5, right): change `1.0.0` to `1.1.0`
    - Click **Update**.
 2. **LAB:** **Watched Agents**, click **Contoso Travel Booking Agent**, then click **Check now**.
