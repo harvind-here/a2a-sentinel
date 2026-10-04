@@ -161,12 +161,12 @@ the Watched Agent would lose its card.
 | Test | 1. PDI: Fleet Agent to edit | 1. PDI: change | 2. LAB: Watched Agent | 2. LAB: click | 3. Expect |
 |---|---|---|---|---|---|
 | B1 | none | none | Contoso Vendor Risk Agent | Check now | `no change, 0 new finding(s)` |
-| B2 | Contoso Vendor Risk Agent | Auth mode = None (public); Skills = **JSON 1** | Contoso Vendor Risk Agent | Check now | 3 findings: Critical, High, Medium |
+| B2 | Contoso Vendor Risk Agent | Auth mode = None (public); Skills = **JSON 1** (below this table) | Contoso Vendor Risk Agent | Check now | 3 findings: Critical, High, Medium |
 | B3 | none | none | Contoso Vendor Risk Agent | Check now | `no change`, no duplicates |
 | B4 | none | none | Contoso Vendor Risk Agent, then its Medium finding | Accept risk | finding Closed Complete |
 | B5 | Contoso Travel Booking Agent | Endpoint override = `https://contoso-agents.example.net/a2a/travel`; Agent version = `1.1.0` | Contoso Travel Booking Agent | Check now | 1 High finding |
 | B6 | Contoso HR Letters Agent | OAuth scopes = `letters.draft,hr.records.read`; Agent version = `1.1.0` | Contoso HR Letters Agent | Check now | 1 Medium finding |
-| B7 | Contoso Expense Policy Agent | Skills = **JSON 2**; Agent version = `2.2.0` | Contoso Expense Policy Agent | Check now | 1 Medium finding |
+| B7 | Contoso Expense Policy Agent | Skills = **JSON 2** (below this table); Agent version = `2.2.0` | Contoso Expense Policy Agent | Check now | 1 Medium finding |
 | B8 | Contoso HR Letters Agent | A2A protocol version = `1.0.0`; Supports streaming = ticked; Agent version = `1.2.0` | Contoso HR Letters Agent | Check now | 1 Medium and 1 Low finding |
 | B9 | Contoso Expense Policy Agent | Status = Offline (503) | Contoso Expense Policy Agent | Check now **twice** | Degraded, then Down plus 1 High finding |
 | B10 | Contoso Expense Policy Agent | Status = Online | Contoso Expense Policy Agent | Check now | Healthy; the B9 finding closes itself |
@@ -220,7 +220,7 @@ Sentinel fills them in.
 | 1 | Name (full width) | |
 | 2 | Slug | Supports push notifications |
 | 3 | Provider organization (full width) | |
-| 4 | **Skills (JSON array)**, a big text box (full width) | |
+| 4 | **Skills (JSON array)**: the wide text box under *Provider organization*. The form shows **no label** for it; it's the box whose text starts with `[{"id":` | |
 | 5 | **A2A protocol version**, **Status** | **Agent version** |
 | 6 | **Endpoint override** (full width) | |
 | 7 | **Auth mode**, **Supports streaming** | Active |
@@ -268,7 +268,11 @@ under the same version number.
 
 1. **PDI:** **All > A2A Contoso Fleet > Fleet Agents**, then click **Contoso Vendor Risk Agent**.
    - **Auth mode** (row 7): choose **None (public)**.
-   - **Skills (JSON array)** (row 4): click in the box, press **Ctrl+A**, press **Delete**, then paste **JSON 1**.
+   - **Skills (JSON array)**: the wide box with no label under *Provider organization* (its text starts with
+     `[{"id":"vendor_risk_score"`). Click in it, press **Ctrl+A**, press **Delete**, then paste **JSON 1**:
+     ```json
+     [{"id":"vendor_risk_score","name":"Vendor risk score","description":"Return a 0-100 risk score with the top risk drivers.","tags":["risk","vendor"]},{"id":"delete_vendor_record","name":"Delete vendor record","description":"Permanently delete a vendor and all associated contracts from the vendor master.","tags":["vendor","admin"]}]
+     ```
    - **Agent version** (row 5, right): leave it at `1.4.2`.
    - Click **Update**.
    - *(Optional)* Open `.../fleet/agents/vendor-risk/card` in a browser. It now shows `"securitySchemes": {}`,
@@ -358,7 +362,11 @@ under the same version number.
 **Simulates:** a capability your workflows may depend on disappears.
 
 1. **PDI:** **Fleet Agents**, then click **Contoso Expense Policy Agent**.
-   - **Skills (JSON array)**: Ctrl+A, Delete, then paste **JSON 2**.
+   - **Skills (JSON array)**: the wide box with no label under *Provider organization*. Click in it, press **Ctrl+A**,
+     press **Delete**, then paste **JSON 2**:
+     ```json
+     [{"id":"check_policy","name":"Check expense policy","description":"Validate an expense line against policy limits.","tags":["finance","policy"]}]
+     ```
    - **Agent version**: change `2.1.0` to `2.2.0`
    - Click **Update**.
 2. **LAB:** **Watched Agents**, click **Contoso Expense Policy Agent**, then click **Check now**.
