@@ -21,12 +21,15 @@ RestApi({
     consumes: 'application/json',
     produces: 'application/json',
     enforceAcl: [sentinelApiAcl],
+    // Each route needs the ACL too: a route without one gets the platform's "Scripted REST External Default"
+    // ACL, which overrides the API default and admits any internal user.
     routes: [
         {
             $id: Now.ID['a2a-sentinel-api-run'],
             name: 'Run watch cycle',
             method: 'POST',
             path: '/run',
+            enforceAcl: [sentinelApiAcl],
             script: `(function process(request, response) {
     var stats = new x_snc_a2a_sentinel.A2ASentinel().runCycle();
     response.setStatus(200);
@@ -38,6 +41,7 @@ RestApi({
             name: 'Check one agent',
             method: 'POST',
             path: '/agents/{sys_id}/check',
+            enforceAcl: [sentinelApiAcl],
             script: `(function process(request, response) {
     var w = new GlideRecord('x_snc_a2a_sentinel_agent');
     if (!w.get(request.pathParams.sys_id)) {
@@ -54,6 +58,7 @@ RestApi({
             name: 'Status',
             method: 'GET',
             path: '/status',
+            enforceAcl: [sentinelApiAcl],
             script: `(function process(request, response) {
     var agents = [];
     var w = new GlideRecord('x_snc_a2a_sentinel_agent');
