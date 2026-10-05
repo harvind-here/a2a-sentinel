@@ -13,7 +13,7 @@ and **AI Control Tower Core 7.0.1**. Gaps 1, 2, 3 and 5 are unchanged. Gap 4 hol
 - Every AI agent in AI Agent Studio, **including external A2A agents ServiceNow consumes**, is inventoried
   hourly as an **AI System Digital Asset** (`alm_ai_system_digital_asset`) and an **AI Function CI**
   (`cmdb_ci_function_ai`). Jobs: *Sync Now Assist AI Assets*, *Populate AI Assets From MIF Virtual Table*.
-- AI Discovery connectors cover hyperscaler and SaaS platforms (Bedrock, Azure AI Foundry, Vertex, Copilot Studio, ...).
+- AI Discovery connectors cover hyperscaler and SaaS platforms (Bedrock, Azure AI Foundry, Vertex AI, Microsoft Copilot Studio, ...).
 - MCP servers are synced every 15 minutes, and the AI Gateway records MCP success rate and latency.
 - The CI class has native `card` (JSON) and `well_known_uri` fields.
 

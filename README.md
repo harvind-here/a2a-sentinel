@@ -152,3 +152,7 @@ Moving to a new instance: [docs/migration.md](docs/migration.md).
 - ServiceNow Community: [ServiceNow as a primary A2A agent](https://www.servicenow.com/community/ceg-ai-coe-articles/servicenow-as-a-primary-a2a-agent-discovering-and-invoking/ta-p/3528579)
 - ServiceNow Community: [What's new in AI Control Tower, Aug & Sep 2026](https://www.servicenow.com/community/ai-control-tower-articles/what-s-new-in-ai-control-tower-for-august-amp-september-2026/ta-p/3597749)
 - [ServiceNow SDK (Fluent)](https://docs.servicenow.com/csh?topicname=servicenow-sdk-landing.html)
+
+## License
+
+[MIT](LICENSE)
